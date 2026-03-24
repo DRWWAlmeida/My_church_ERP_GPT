@@ -1,10 +1,14 @@
 import random
-from models import Lancamentos, todos_lancamentos
+from models import Lancamentos, ContaCorrente, todos_lancamentos, todas_contas_correntes
 
 def cadastrar_automatico(quantidade):
     # Listas de opções para o sorteio
     descricoes = ["Mercado", "Farmácia", "Gasolina", "Restaurante", "Netflix", "Aluguel", "Academia"]
     contas = ["NuBank", "Inter", "Santander", "Itaú"]
+
+    for conta in contas:
+        nova_conta_corrente = ContaCorrente(conta)
+        todas_contas_correntes.append(nova_conta_corrente)
     
     for _ in range(quantidade):
         # Gera data aleatória (exemplo para o ano de 2024)
@@ -17,10 +21,10 @@ def cadastrar_automatico(quantidade):
         
         # Sorteia descrição e conta
         desc_aleatoria = random.choice(descricoes)
-        conta_aleatoria = random.choice(contas)
+        conta_aleatoria = random.choice(todas_contas_correntes)
         
         # Cria o objeto e adiciona à lista global
-        novo = Lancamentos(data_aleatoria, str(valor_aleatorio), desc_aleatoria, conta_aleatoria)
-        todos_lancamentos.append(novo)
+        novo_lancamento = Lancamentos(data_aleatoria, str(valor_aleatorio), desc_aleatoria, conta_aleatoria)
+        todos_lancamentos.append(novo_lancamento)
         
     print(f"{quantidade} lançamentos gerados com sucesso!")
