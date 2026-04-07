@@ -1,6 +1,6 @@
 import sqlite3
 
-DB_PATH = 'app/models/igreja_erp.db'
+DB_PATH = 'app/db/igreja_erp.db'
 
 def get_connection():
     connection = sqlite3.connect(DB_PATH)

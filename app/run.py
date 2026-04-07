@@ -1,12 +1,6 @@
-from flask import Flask
-from app.db.schema import create_schema
+from app import create_app
 
-app = Flask(__name__)
-create_schema()
-
-@app.route("/")
-def lancamentos():
-    return "Hell"
+app = create_app()
 
 if __name__ == '__main__':
     app.run(debug=True)
