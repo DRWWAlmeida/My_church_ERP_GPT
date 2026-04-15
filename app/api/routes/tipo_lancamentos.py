@@ -5,7 +5,7 @@ tipo_lancamentos_bp = Blueprint("tipo_lancamento", __name__)
 
 @tipo_lancamentos_bp.get("/tipo_lancamentos")
 def tipo_lancamentos():
-    return jsonify({'Pagina': 'GET.tipo_lancamentos'})
+    return jsonify({"Msg": "Pagina deverá mostrar os tipos de lancamentos cadastradas"})
 
 @tipo_lancamentos_bp.route("/register_tipo_lancamento", methods=['POST'])
 def register_tipo_lancamento():

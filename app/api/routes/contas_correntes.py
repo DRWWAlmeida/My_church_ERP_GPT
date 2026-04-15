@@ -6,7 +6,7 @@ contas_correntes_bp = Blueprint("contas_correntes", __name__)
 
 @contas_correntes_bp.get("/contas_correntes")
 def contas_correntes():
-    return jsonify({"Pagina": "GET.contas_correntes"})
+    return jsonify({"Msg": "Pagina deverá mostrar as contas correntes cadastradas"})
 
 @contas_correntes_bp.route("/register_conta_corrente", methods=['POST'])
 def register_conta_corrente():
