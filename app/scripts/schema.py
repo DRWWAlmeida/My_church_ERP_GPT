@@ -1,4 +1,4 @@
-from .connections import get_connection
+from app.core.database import get_connection
 
 def create_schema():
     connection = get_connection()

@@ -1,13 +1,9 @@
 from flask import Flask
-
 from app.api import register_blueprints
-from app.db.schema import create_schema
-
 
 def create_app():
     app = Flask(__name__)
+    app.config.from_object("app.config")
 
-    create_schema()
     register_blueprints(app)
-
     return app

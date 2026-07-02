@@ -1,9 +1,7 @@
 import sqlite3
-
-DB_PATH = 'app/db/igreja_erp.db'
+from app.config import DB_PATH
 
 def get_connection():
     connection = sqlite3.connect(DB_PATH)
     connection.execute('PRAGMA foreign_keys = ON;')
     return connection
-
