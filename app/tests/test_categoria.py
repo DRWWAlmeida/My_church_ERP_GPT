@@ -26,3 +26,4 @@ def test_falha_criar_categoria_tipo_dado_int(client):
     assert response.get_json()['status'] == 'error'
 
 
+

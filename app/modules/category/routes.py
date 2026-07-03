@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request
-from app.modules.category.services import create_category
+from app.modules.category.services import create_category, update_category
 
 
 category_bp = Blueprint('category', __name__)
@@ -20,3 +20,12 @@ def category_bp_post():
     }), 201
     
 
+@category_bp.route('/category', methods=['PUT'])
+def category_bp_put():
+    payload = request.get_json()
+    response = update_category(payload)
+    return jsonify({
+        "data": response,
+        "status": "success",
+        "message": "Categoria Atualizada!"
+    }), 201
