@@ -22,3 +22,7 @@ def validate_create_category_payload(payload):
     ensure_not_blank(category_name, field_name)
     ensure_length(category_name, field_name, min_length=3, max_length=100)
     return {field_name: category_name}
+
+def validate_is_in_database():
+    pass
+

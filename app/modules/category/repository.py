@@ -61,3 +61,24 @@ def create(category_name):
             connection.close()
 
     return {"id": id_gerado, "nome": category_name}
+
+def get_all():
+    connection = None
+    cursor = None  
+
+    try:
+        connection = get_connection()
+        connection.row_factory = sqlite3.Row
+        cursor = connection.cursor()
+
+        sql = '''SELECT id, nome FROM categoria'''
+        cursor.execute(sql,)
+        categories = cursor.fetchall()
+        
+    finally:
+        if cursor: 
+            cursor.close()
+        if connection:
+            connection.close()
+
+    return categories
