@@ -82,3 +82,27 @@ def get_all():
             connection.close()
 
     return categories
+
+def get_category(category_id):
+    connection = None
+    cursor = None
+
+    try: 
+        connection= get_connection()
+        cursor = connection.cursor()
+
+        sql = '''SELECT nome FROM categoria WHERE id = ?'''
+
+        cursor.execute(sql, (category_id,))
+
+        category = cursor.fetchone()
+
+        if category:
+            return category
+        return None
+    
+    finally:
+        if cursor: 
+            cursor.close()
+        if connection:
+            connection.close()
