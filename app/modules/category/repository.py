@@ -62,44 +62,27 @@ def create(category_name):
 
     return {"id": id_gerado, "nome": category_name}
 
-def get_all():
-    connection = None
-    cursor = None  
-
-    try:
-        connection = get_connection()
-        connection.row_factory = sqlite3.Row
-        cursor = connection.cursor()
-
-        sql = '''SELECT id, nome FROM categoria'''
-        cursor.execute(sql,)
-        categories = cursor.fetchall()
-        
-    finally:
-        if cursor: 
-            cursor.close()
-        if connection:
-            connection.close()
-
-    return categories
-
-def get_category(category_id):
+def get_category_filters(conditions, params):
     connection = None
     cursor = None
 
     try: 
         connection= get_connection()
+        connection.row_factory = sqlite3.Row
         cursor = connection.cursor()
 
-        sql = '''SELECT nome FROM categoria WHERE id = ?'''
+        sql = '''SELECT id, nome FROM categoria'''
 
-        cursor.execute(sql, (category_id,))
+        if conditions:
+            sql += " WHERE " + " AND ".join(conditions)
 
-        category = cursor.fetchone()
+        cursor.execute(sql, tuple(params))
 
-        if category:
-            return category
-        return None
+        categories = cursor.fetchall()
+
+        if categories:
+            return categories
+        return []
     
     finally:
         if cursor: 

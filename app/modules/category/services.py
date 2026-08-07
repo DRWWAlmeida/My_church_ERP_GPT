@@ -1,5 +1,5 @@
 from app.modules.category.schema import validate_create_category_payload
-from app.modules.category.repository import create, get_all, get_category
+from app.modules.category.repository import create, get_category_filters
 
 def create_category(payload):
     validated_data = validate_create_category_payload(payload)
@@ -9,19 +9,24 @@ def create_category(payload):
 
     return category
 
-def get_all_category():
+def get_category(category_id, category_name):
 
-    categories = get_all()
-    categories = [dict(category) for category in categories]
+    conditions = []
+    params = []
 
-    return categories
+    if category_id:
+        conditions.append("id = ?")
+        params.append(category_id)
 
-def get_category_id(category_id):
+    if category_name:
+        conditions.append('nome LIKE ?')
+        params.append(f'%{category_name}%')
 
-    category = get_category(category_id)
 
-    return category
-    
+    categories = get_category_filters(conditions, params)
+    if categories:
+        return [dict(category) for category in categories]
+    return []
 
 def update_category(payload):
     pass
