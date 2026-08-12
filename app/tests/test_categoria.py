@@ -4,7 +4,7 @@ import pytest
 
 @pytest.fixture
 def create_category(client):
-    response = client.post('/category', json={'categoria': 'Tecnologia'})
+    response = client.post('/category', json={'categoria': "category"})
 
 @pytest.mark.parametrize('category', [('Tecnologia'), ('Luz'), ("Uso e Consumo"), ])
 def test_success_create_category(client, category):
