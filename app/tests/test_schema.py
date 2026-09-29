@@ -107,3 +107,55 @@ def test_schema_migrates_duplicate_accounts_and_preserves_references():
         if "connection" in locals():
             connection.close()
         db_path.unlink(missing_ok=True)
+
+
+def test_schema_migrates_duplicate_transaction_types_and_preserves_references():
+    app = create_app()
+    db_path = app.config["BASE_DIR"] / "db" / f"migration_{uuid4().hex}.db"
+    connection = sqlite3.connect(db_path)
+    try:
+        connection.executescript(
+            """
+            CREATE TABLE tipo_lancamento(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nome VARCHAR(100) NOT NULL
+            );
+            CREATE TABLE lancamento(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                tipo_lancamento_id INTEGER NOT NULL,
+                data DATE NOT NULL,
+                valor DECIMAL(10,2) NOT NULL,
+                descricao TEXT NOT NULL,
+                categoria_id INTEGER NOT NULL,
+                conta_corrente_id INTEGER NOT NULL
+            );
+            INSERT INTO tipo_lancamento(nome) VALUES ('Entrada'), ('entrada');
+            INSERT INTO lancamento(
+                tipo_lancamento_id, data, valor, descricao,
+                categoria_id, conta_corrente_id
+            ) VALUES (2, '2026-09-28', 10, 'Teste', 1, 1);
+            """
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+    app.config.update(TESTING=True, DATABASE=str(db_path))
+    try:
+        with app.app_context():
+            create_schema()
+
+        connection = sqlite3.connect(db_path)
+        transaction_types = connection.execute(
+            "SELECT id, nome FROM tipo_lancamento ORDER BY id"
+        ).fetchall()
+        transaction_type_id = connection.execute(
+            "SELECT tipo_lancamento_id FROM lancamento"
+        ).fetchone()[0]
+
+        assert transaction_types == [(1, "Entrada")]
+        assert transaction_type_id == 1
+    finally:
+        if "connection" in locals():
+            connection.close()
+        db_path.unlink(missing_ok=True)
