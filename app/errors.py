@@ -1,4 +1,5 @@
-from flask import Blueprint,jsonify
+from flask import Blueprint, jsonify
+
 from app.core.errors import ValidationError, OperationalError, IntegrityError
 
 errors_bp = Blueprint('errors', __name__)
@@ -10,14 +11,14 @@ def handle_validation_error(e):
             "message": e.message,
             "status": "error"
         }
-        return jsonify(response), 400
+        return jsonify(response), e.status_code
     else:
         response = {
             "message": e.message,
-            "data": {e.field : e.value},
+            "data": {e.field: e.value},
             "status": "error"
         }
-        return jsonify(response), 400
+        return jsonify(response), e.status_code
 
 @errors_bp.app_errorhandler(OperationalError)
 def handle_operational_error(e):
@@ -25,7 +26,7 @@ def handle_operational_error(e):
         "message": e.message,
         "status": "error"
     }
-    return jsonify(response), 500
+    return jsonify(response), e.status_code
 
 @errors_bp.app_errorhandler(IntegrityError)
 def handle_integrity_error(e):
@@ -34,11 +35,11 @@ def handle_integrity_error(e):
             "message": e.message,
             "status": "error"
         }
-        return jsonify(response), 400
+        return jsonify(response), e.status_code
     else:
         response = {
             "message": e.message,
-            "data": {e.field : e.value},
+            "data": {e.field: e.value},
             "status": "error"
         }
-        return jsonify(response), 400
+        return jsonify(response), e.status_code
