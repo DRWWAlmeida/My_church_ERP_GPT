@@ -7,7 +7,7 @@ def create_schema():
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS conta_corrente(
                 id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, 
-                nome VARCHAR(100) NOT NULL)
+                nome VARCHAR(100) NOT NULL COLLATE NOCASE UNIQUE)
         ''')
 
         cursor.execute('''
@@ -48,6 +48,10 @@ def create_schema():
                     ON canonical.nome = current.nome COLLATE NOCASE
                 WHERE current.id = lancamento.categoria_id
             )
+            WHERE EXISTS (
+                SELECT 1 FROM categoria
+                WHERE id = lancamento.categoria_id
+            )
         ''')
         cursor.execute('''
             DELETE FROM categoria
@@ -60,6 +64,34 @@ def create_schema():
         cursor.execute('''
             CREATE UNIQUE INDEX IF NOT EXISTS uq_categoria_nome
             ON categoria(nome COLLATE NOCASE)
+        ''')
+
+        # Apply the same migration strategy to legacy checking accounts.
+        cursor.execute('''
+            UPDATE lancamento
+            SET conta_corrente_id = (
+                SELECT MIN(canonical.id)
+                FROM conta_corrente AS canonical
+                JOIN conta_corrente AS current
+                    ON canonical.nome = current.nome COLLATE NOCASE
+                WHERE current.id = lancamento.conta_corrente_id
+            )
+            WHERE EXISTS (
+                SELECT 1 FROM conta_corrente
+                WHERE id = lancamento.conta_corrente_id
+            )
+        ''')
+        cursor.execute('''
+            DELETE FROM conta_corrente
+            WHERE id NOT IN (
+                SELECT MIN(id)
+                FROM conta_corrente
+                GROUP BY nome COLLATE NOCASE
+            )
+        ''')
+        cursor.execute('''
+            CREATE UNIQUE INDEX IF NOT EXISTS uq_conta_corrente_nome
+            ON conta_corrente(nome COLLATE NOCASE)
         ''')
         connection.commit()
     finally:
