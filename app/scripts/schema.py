@@ -13,7 +13,7 @@ def create_schema():
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS tipo_lancamento(
                 id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-                nome VARCHAR(100) NOT NULL)
+                nome VARCHAR(100) NOT NULL COLLATE NOCASE UNIQUE)
         ''')
 
         cursor.execute('''
@@ -92,6 +92,34 @@ def create_schema():
         cursor.execute('''
             CREATE UNIQUE INDEX IF NOT EXISTS uq_conta_corrente_nome
             ON conta_corrente(nome COLLATE NOCASE)
+        ''')
+
+        # Consolidate legacy transaction types before enabling uniqueness.
+        cursor.execute('''
+            UPDATE lancamento
+            SET tipo_lancamento_id = (
+                SELECT MIN(canonical.id)
+                FROM tipo_lancamento AS canonical
+                JOIN tipo_lancamento AS current
+                    ON canonical.nome = current.nome COLLATE NOCASE
+                WHERE current.id = lancamento.tipo_lancamento_id
+            )
+            WHERE EXISTS (
+                SELECT 1 FROM tipo_lancamento
+                WHERE id = lancamento.tipo_lancamento_id
+            )
+        ''')
+        cursor.execute('''
+            DELETE FROM tipo_lancamento
+            WHERE id NOT IN (
+                SELECT MIN(id)
+                FROM tipo_lancamento
+                GROUP BY nome COLLATE NOCASE
+            )
+        ''')
+        cursor.execute('''
+            CREATE UNIQUE INDEX IF NOT EXISTS uq_tipo_lancamento_nome
+            ON tipo_lancamento(nome COLLATE NOCASE)
         ''')
         connection.commit()
     finally:
