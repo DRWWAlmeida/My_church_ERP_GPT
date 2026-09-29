@@ -1,6 +1,12 @@
-from app.core.database import get_connection
-from app.core.errors import  OperationalError, IntegrityError
+import logging
 import sqlite3
+
+from app.core.database import get_connection
+from app.core.errors import IntegrityError, OperationalError
+
+
+logger = logging.getLogger(__name__)
+
 
 def create(category_name):
     connection = None
@@ -17,45 +23,46 @@ def create(category_name):
         id_gerado = cursor.lastrowid
         connection.commit()
     except sqlite3.IntegrityError as e:
-            if connection:
-                connection.rollback()
-            print(f"Erro de integridade no SQLite: {e}")
-            error = str(e)
-            
-            if "UNIQUE constraint failed" in error:
-                raise IntegrityError(
-                    message=f"A categoria '{category_name}' já está cadastrada.",
-                    field="categoria",
-                    value=category_name,
-                )
-            
-            elif "NOT NULL constraint failed" in error:
-                raise IntegrityError(
-                    message="O nome da categoria não pode ser vazio.",
-                    field="categoria",
-                    value=category_name,
-                )
-            
-            else:
-                raise IntegrityError(
-                message=f"Esta categoria já está cadastrada ou é inválida. Detalhe: {e}", 
-                field="categoria", 
+        if connection:
+            connection.rollback()
+        logger.warning("Falha de integridade ao criar categoria: %s", e)
+        error = str(e)
+
+        if "UNIQUE constraint failed" in error:
+            raise IntegrityError(
+                message=f"A categoria '{category_name}' já está cadastrada.",
+                field="categoria",
                 value=category_name,
-                )
+            ) from e
+
+        if "NOT NULL constraint failed" in error:
+            raise IntegrityError(
+                message="O nome da categoria não pode ser vazio.",
+                field="categoria",
+                value=category_name,
+            ) from e
+
+        raise IntegrityError(
+            message=f"Esta categoria já está cadastrada ou é inválida. Detalhe: {e}",
+            field="categoria",
+            value=category_name,
+        ) from e
 
     except sqlite3.OperationalError as e:
         if connection:
             connection.rollback()
-        print(f"Erro operacional no SQLite: {e}")
-        raise OperationalError(message=f"Falha operacional ao acessar o banco de dados.")
+        logger.exception("Falha operacional ao criar categoria")
+        raise OperationalError(
+            message="Falha operacional ao acessar o banco de dados."
+        ) from e
 
     except sqlite3.Error as e:
         if connection:
             connection.rollback()
-        print(f"Erro genérico de banco de dados: {e}")
-        raise OperationalError(message="Erro inesperado no banco de dados.")
+        logger.exception("Falha inesperada ao criar categoria")
+        raise OperationalError(message="Erro inesperado no banco de dados.") from e
     finally:
-        if cursor: 
+        if cursor:
             cursor.close()
         if connection:
             connection.close()
@@ -66,8 +73,8 @@ def get_category_filters(conditions, params):
     connection = None
     cursor = None
 
-    try: 
-        connection= get_connection()
+    try:
+        connection = get_connection()
         connection.row_factory = sqlite3.Row
         cursor = connection.cursor()
 
@@ -76,16 +83,18 @@ def get_category_filters(conditions, params):
         if conditions:
             sql += " WHERE " + " AND ".join(conditions)
 
+        sql += " ORDER BY id"
+
         cursor.execute(sql, tuple(params))
 
-        categories = cursor.fetchall()
-
-        if categories:
-            return categories
-        return []
-    
+        return cursor.fetchall()
+    except sqlite3.Error as e:
+        logger.exception("Falha ao consultar categorias")
+        raise OperationalError(
+            message="Falha operacional ao acessar o banco de dados."
+        ) from e
     finally:
-        if cursor: 
+        if cursor:
             cursor.close()
         if connection:
             connection.close()

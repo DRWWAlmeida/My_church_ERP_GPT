@@ -19,7 +19,7 @@ def create_schema():
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS categoria(
                 id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-                nome VARCHAR(100) NOT NULL)
+                nome VARCHAR(100) NOT NULL COLLATE NOCASE UNIQUE)
         ''')
 
         cursor.execute('''
@@ -35,6 +35,31 @@ def create_schema():
                 FOREIGN KEY (categoria_id) REFERENCES categoria(id),
                 FOREIGN KEY (conta_corrente_id) REFERENCES conta_corrente(id)
                 )
+        ''')
+
+        # Preserve the oldest category and repoint existing transactions before
+        # enabling uniqueness on databases created by older versions.
+        cursor.execute('''
+            UPDATE lancamento
+            SET categoria_id = (
+                SELECT MIN(canonical.id)
+                FROM categoria AS canonical
+                JOIN categoria AS current
+                    ON canonical.nome = current.nome COLLATE NOCASE
+                WHERE current.id = lancamento.categoria_id
+            )
+        ''')
+        cursor.execute('''
+            DELETE FROM categoria
+            WHERE id NOT IN (
+                SELECT MIN(id)
+                FROM categoria
+                GROUP BY nome COLLATE NOCASE
+            )
+        ''')
+        cursor.execute('''
+            CREATE UNIQUE INDEX IF NOT EXISTS uq_categoria_nome
+            ON categoria(nome COLLATE NOCASE)
         ''')
         connection.commit()
     finally:
