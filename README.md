@@ -28,6 +28,11 @@ app/
       routes.py
       schema.py
       services.py
+    transaction_type/
+      repository.py
+      routes.py
+      schema.py
+      services.py
   scripts/
     schema.py
   tests/
@@ -150,6 +155,19 @@ O `GET` aceita os filtros opcionais `id` e `nome`. O `POST` recebe:
 ```json
 {
   "conta_corrente": "Banco Principal"
+}
+```
+
+O modulo `transaction_type` expoe:
+
+- `GET /transaction-type`
+- `POST /transaction-type`
+
+O `GET` aceita os filtros opcionais `id` e `nome`. O `POST` recebe:
+
+```json
+{
+  "tipo_lancamento": "Entrada"
 }
 ```
 
