@@ -23,6 +23,11 @@ app/
       routes.py
       schema.py
       services.py
+    checking_account/
+      repository.py
+      routes.py
+      schema.py
+      services.py
   scripts/
     schema.py
   tests/
@@ -134,6 +139,19 @@ O `POST /category` segue este fluxo:
 2. O service chama o schema de validacao.
 3. O repository grava no banco.
 4. A rota devolve resposta JSON padronizada.
+
+O modulo `checking_account` segue a mesma estrutura e expoe:
+
+- `GET /checking-account`
+- `POST /checking-account`
+
+O `GET` aceita os filtros opcionais `id` e `nome`. O `POST` recebe:
+
+```json
+{
+  "conta_corrente": "Banco Principal"
+}
+```
 
 ## Observacoes
 
