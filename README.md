@@ -105,7 +105,7 @@ acontece o seguinte:
 3. `app.run` chama `create_app()`.
 4. `create_app()` instancia o `Flask` e carrega as configuracoes.
 5. `register_blueprints(app)` registra os blueprints da API.
-6. O servidor Flask sobe em modo debug.
+6. O servidor Flask sobe com debug desativado por padrao (configuravel).
 
 Importante:
 
@@ -171,7 +171,71 @@ O `GET` aceita os filtros opcionais `id` e `nome`. O `POST` recebe:
 }
 ```
 
-## Observacoes
+## Lancamentos
+
+O modulo `app/modules/transaction` separa rotas, validacao, servicos e persistencia.
+
+| Metodo | Endpoint | Comportamento |
+| --- | --- | --- |
+| POST | `/transaction` | Cria e retorna HTTP 201 |
+| GET | `/transaction` | Lista paginada, HTTP 200 |
+| GET | `/transaction/<id>` | Consulta individual, HTTP 200 |
+| PUT | `/transaction/<id>` | Substitui todos os campos, HTTP 200 |
+| PATCH | `/transaction/<id>` | Atualiza campos enviados, HTTP 200 |
+| DELETE | `/transaction/<id>` | Exclusao definitiva, HTTP 204 sem corpo |
+
+Corpo de POST e PUT (todos os campos obrigatorios):
+
+```json
+{
+  "tipo_lancamento_id": 1,
+  "categoria_id": 1,
+  "conta_corrente_id": 1,
+  "data": "2026-10-06",
+  "valor_centavos": 12590,
+  "descricao": "Oferta semanal"
+}
+```
+
+`valor_centavos` e um inteiro positivo: 12590 representa R$ 125,90, inclusive
+para saidas. O limite e 9223372036854775807. Numeros fracionarios, strings e
+booleanos nao sao aceitos para valores ou IDs. A data deve ser valida em
+`YYYY-MM-DD` e pode ser futura. A descricao e aparada e deve ter 3 a 255
+caracteres. Os tres IDs devem existir. PATCH exige ao menos um campo; campos
+desconhecidos sao rejeitados. Nao ha calculo de saldo nem transferencia entre
+contas; o tipo e apenas a classificacao cadastrada.
+
+Respostas de leitura e escrita usam `status`, `message` e `data`. O objeto em
+`data` contem `id`, `data`, `valor_centavos`, `descricao` e as relacoes
+`tipo_lancamento`, `categoria` e `conta_corrente`, cada uma com `id` e `nome`.
+GET da colecao retorna `data` como lista e `pagination` com `page`, `per_page`,
+`total` e `total_pages`. Paginas vazias retornam lista vazia com HTTP 200.
+
+Filtros combinaveis: `tipo_lancamento_id`, `categoria_id`, `conta_corrente_id`,
+`data_inicio`, `data_fim` (limites inclusivos) e `descricao` (trecho literal).
+Ordenacao: data decrescente e ID decrescente. `page` inicia em 1; `per_page`
+padrao 20, maximo 100. Parametros invalidos ou repetidos retornam HTTP 400.
+Recursos inexistentes retornam 404; validacoes e relacionamentos invalidos,
+400; falhas do banco, 500 com mensagem generica.
+
+### Migracao de valores antigos
+
+Ao inicializar pelo `python -m app.run`, o schema converte `valor` em
+`valor_centavos`, preservando IDs, referencias e sequencia de IDs. A conversao
+usa decimal com arredondamento de meio centavo para cima (1.005 vira 101).
+O processo e transacional e idempotente. Valores invalidos, nao positivos,
+fora do limite ou vinculos inexistentes interrompem a migracao com rollback.
+Corrija os dados indicados antes de tentar novamente; nenhuma linha e descartada
+para contornar erros. Faca backup do banco e pare os processos da aplicacao
+antes de atualizar: versoes antigas que usam `valor` nao sao compativeis com o
+schema convertido. Os testes usam bancos isolados; nao migram o banco local.
+
+### Fluxo de desenvolvimento
+
+Crie features a partir da `develop`. Integre e teste nessa branch antes de
+promover para `main`, conforme o fluxo acordado do projeto.
+
+## Observacoes gerais
 
 - Rode o projeto com `python -m app.run` a partir da raiz do repositorio.
 - O modo debug vem desativado. Para habilita-lo localmente, defina
