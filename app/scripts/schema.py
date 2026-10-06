@@ -1,8 +1,10 @@
 from app.core.database import get_connection
+from app.scripts.transaction_migration import migrate_transaction_values
 
 def create_schema():
     connection = get_connection()
     try:
+        connection.execute('BEGIN IMMEDIATE')
         cursor = connection.cursor()
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS conta_corrente(
@@ -121,7 +123,11 @@ def create_schema():
             CREATE UNIQUE INDEX IF NOT EXISTS uq_tipo_lancamento_nome
             ON tipo_lancamento(nome COLLATE NOCASE)
         ''')
+        migrate_transaction_values(connection)
         connection.commit()
+    except Exception:
+        connection.rollback()
+        raise
     finally:
         connection.close()
 
