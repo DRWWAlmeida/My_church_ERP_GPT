@@ -3,6 +3,8 @@ import sqlite3
 import pytest
 
 from app.scripts import schema
+from app import create_app
+from app.core.database import get_connection
 
 
 class TestConnection(sqlite3.Connection):
@@ -45,14 +47,46 @@ def insert_legacy(connection, amount, row_id=1):
     connection.commit()
 
 
+def snapshot(connection):
+    """Compare all schema objects, rows and AUTOINCREMENT high-water marks."""
+    objects = connection.execute(
+        'SELECT type, name, tbl_name, sql FROM sqlite_master ORDER BY type, name'
+    ).fetchall()
+    rows = {
+        name: connection.execute(f'SELECT * FROM "{name}" ORDER BY rowid').fetchall()
+        for kind, name, _, _ in objects if kind == 'table'
+    }
+    return objects, rows
+
+
+def seed_duplicates(connection):
+    for table, name in (
+        ('categoria', 'oferta'), ('conta_corrente', 'caixa'),
+        ('tipo_lancamento', 'entrada'),
+    ):
+        connection.execute(f'INSERT INTO {table} VALUES (7, ?)', (name,))
+    connection.execute(
+        'UPDATE lancamento SET categoria_id = 7, conta_corrente_id = 7, tipo_lancamento_id = 7'
+    )
+    connection.commit()
+
+
 def test_migration_rounding_sequence_idempotence_and_foreign_keys(legacy):
     for index, value in enumerate(('0.29', '1.005', '125.90'), 1):
         insert_legacy(legacy, value, index)
     insert_legacy(legacy, '10.00', 50)
     legacy.execute('DELETE FROM lancamento WHERE id = 50')
     legacy.commit()
+    seed_duplicates(legacy)
+    original = legacy.execute('SELECT id, data, descricao FROM lancamento ORDER BY id').fetchall()
     schema.create_schema()
+    migrated = snapshot(legacy)
     schema.create_schema()
+    assert snapshot(legacy) == migrated
+    assert legacy.execute('SELECT id, data, descricao FROM lancamento ORDER BY id').fetchall() == original
+    for table, name in (('categoria', 'Oferta'), ('conta_corrente', 'Caixa'), ('tipo_lancamento', 'Entrada')):
+        assert legacy.execute(f'SELECT * FROM {table}').fetchall() == [(1, name)]
+    assert legacy.execute('SELECT categoria_id, conta_corrente_id, tipo_lancamento_id FROM lancamento').fetchall() == [(1, 1, 1)] * 3
     assert legacy.execute('SELECT id, valor_centavos FROM lancamento ORDER BY id').fetchall() == [(1, 29), (2, 101), (3, 12590)]
     assert legacy.execute('PRAGMA foreign_key_check').fetchall() == []
     assert len(legacy.execute('PRAGMA foreign_key_list(lancamento)').fetchall()) == 3
@@ -67,24 +101,72 @@ def test_migration_rounding_sequence_idempotence_and_foreign_keys(legacy):
 
 @pytest.mark.parametrize('amount', ['invalid', '-1', '0', '0.001', 'Infinity', 'NaN', '1e30'])
 def test_invalid_legacy_value_rolls_back_entire_upgrade(legacy, amount):
-    insert_legacy(legacy, amount)
-    legacy.execute("INSERT INTO categoria VALUES (2, 'oferta')")
-    legacy.commit()
-    before = legacy.execute('SELECT * FROM lancamento').fetchall()
-    with pytest.raises(ValueError, match='lançamento 1'):
+    insert_legacy(legacy, '1.005')
+    insert_legacy(legacy, amount, 2)
+    seed_duplicates(legacy)
+    before = snapshot(legacy)
+    with pytest.raises(ValueError, match='lançamento 2'):
         schema.create_schema()
-    assert legacy.execute('SELECT * FROM lancamento').fetchall() == before
-    assert legacy.execute('SELECT COUNT(*) FROM categoria').fetchone()[0] == 2
-    assert 'valor' in {row[1] for row in legacy.execute('PRAGMA table_info(lancamento)')}
-    assert not legacy.execute("SELECT 1 FROM sqlite_master WHERE name = 'lancamento_centavos'").fetchone()
+    assert snapshot(legacy) == before
+    assert not legacy.in_transaction
 
 
-def test_orphan_relation_aborts_migration(legacy):
+@pytest.mark.parametrize('column', ['categoria_id', 'conta_corrente_id', 'tipo_lancamento_id'])
+def test_orphan_relation_aborts_migration(legacy, column):
     legacy.execute('PRAGMA foreign_keys = OFF')
     insert_legacy(legacy, '10.00')
-    legacy.execute('UPDATE lancamento SET categoria_id = 999')
+    insert_legacy(legacy, '1.005', 2)
+    seed_duplicates(legacy)
+    legacy.execute(f'UPDATE lancamento SET {column} = 999 WHERE id = 2')
     legacy.commit()
     legacy.execute('PRAGMA foreign_keys = ON')
+    before = snapshot(legacy)
     with pytest.raises(sqlite3.IntegrityError):
         schema.create_schema()
-    assert legacy.execute('SELECT valor, categoria_id FROM lancamento').fetchone() == (10, 999)
+    assert snapshot(legacy) == before
+    assert not legacy.in_transaction
+
+
+def test_restore_synthetic_backup_after_committed_migration(legacy, tmp_path, monkeypatch):
+    for row_id, amount in enumerate(('0.29', '1.005', '125.90'), 1):
+        insert_legacy(legacy, amount, row_id)
+    insert_legacy(legacy, '10', 50)
+    legacy.execute('DELETE FROM lancamento WHERE id = 50')
+    legacy.commit()
+    seed_duplicates(legacy)
+    before = snapshot(legacy)
+    database_path = tmp_path / 'synthetic.db'
+    backup_path = tmp_path / 'before-migration.db'
+    with sqlite3.connect(database_path) as destination:
+        legacy.backup(destination)
+    destination.close()
+    with sqlite3.connect(database_path) as source, sqlite3.connect(backup_path) as backup:
+        source.backup(backup)
+        assert snapshot(backup) == before
+    source.close()
+    backup.close()
+
+    app = create_app()
+    app.config.update(TESTING=True, DATABASE=str(database_path))
+    monkeypatch.setattr(schema, 'get_connection', get_connection)
+    with app.app_context():
+        schema.create_schema()
+    # A fresh connection proves that conversion committed to disk.
+    with sqlite3.connect(database_path) as migrated:
+        assert migrated.execute('SELECT valor_centavos FROM lancamento ORDER BY id').fetchall() == [(29,), (101,), (12590,)]
+        assert snapshot(migrated) != before
+    migrated.close()
+
+    # All application connections are closed before restoring the saved database.
+    with sqlite3.connect(backup_path) as backup, sqlite3.connect(database_path) as restored:
+        backup.backup(restored)
+    backup.close()
+    restored.close()
+    with sqlite3.connect(database_path) as restored:
+        assert snapshot(restored) == before
+        assert restored.execute('PRAGMA integrity_check').fetchall() == [('ok',)]
+        assert restored.execute('PRAGMA foreign_key_check').fetchall() == []
+        cursor = restored.execute("INSERT INTO lancamento(tipo_lancamento_id, data, valor, descricao, categoria_id, conta_corrente_id) VALUES (7, '2026-10-06', 1, 'Restaurado', 7, 7)")
+        assert cursor.lastrowid == 51
+        restored.rollback()
+    restored.close()
