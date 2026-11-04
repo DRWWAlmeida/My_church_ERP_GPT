@@ -2,6 +2,10 @@
 
 Aplicacao Flask em refatoracao, com foco atual na modularizacao de `category`, validacoes compartilhadas em `core` e persistencia em SQLite.
 
+## Escopo planejado do MVP
+
+Uma única igreja, com RBAC nos papéis Administrador, Presidente, Tesoureiro e Membro. Não inclui Master nem gestão de múltiplas igrejas. Identidade e autorização ainda são trabalho planejado; consulte o [PRD](docs/product/PRD.md) e a [matriz de acesso](docs/features/F-004-acesso-compartilhado/matriz-acesso.md).
+
 ## Requisitos
 
 - Python 3.14 ou compativel
@@ -86,9 +90,17 @@ python -m app.run
 Para desenvolvimento e execucao dos testes, instale:
 
 ```powershell
-pip install -r requirements-dev.txt
-python -m pytest
+.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+.\.venv\Scripts\python.exe -m pytest
 ```
+
+Esses comandos usam diretamente o ambiente virtual, sem depender da ativacao
+do PowerShell ou do alias `python` do Windows. Se esse alias nao funcionar ao
+criar a `.venv`, use o caminho de um interpretador Python instalado e validado
+com `--version`, seguido de `-m venv .venv`.
+
+Os testes criam bancos isolados e nao exigem executar `app.run`. O resultado
+inicial verificado esta em [evidencias de F-001/T-001](docs/features/F-001-cadastros-confiaveis/evidencias.md).
 
 ## Fluxo de Inicializacao
 
@@ -100,18 +112,36 @@ python -m app.run
 
 acontece o seguinte:
 
-1. O modulo `app.run` executa `create_schema()`.
-2. `create_schema()` prepara as tabelas do banco antes de subir o servidor.
-3. `app.run` chama `create_app()`.
-4. `create_app()` instancia o `Flask` e carrega as configuracoes.
-5. `register_blueprints(app)` registra os blueprints da API.
-6. O servidor Flask sobe com debug desativado por padrao (configuravel).
+1. O modulo `app.run` cria a aplicacao com `create_app()`, carregando configuracoes e blueprints.
+2. `main()` prepara o schema dentro do contexto dessa aplicacao.
+3. Se a preparacao terminar, inicia o servidor com `app.config['DEBUG']`.
+4. Falhas de preparacao interrompem a inicializacao antes do servidor.
 
 Importante:
 
 - O schema do banco continua fora do `create_app()`.
-- A inicializacao do banco acontece no entrypoint `app.run`.
+- Importar `app.run` apenas expoe `app`; nao conecta, migra ou inicia servidor.
+- A inicializacao do banco acontece ao executar `main()` no entrypoint `app.run`.
 - Isso mantem o app factory limpo e deixa o fluxo operacional explicito no arquivo de execucao.
+
+Schema e API usam a mesma resolucao: no contexto Flask, `DATABASE` explicito
+tem precedencia sobre `app.config['DB_PATH']`; fora dele, usa-se `app.config.DB_PATH`
+do modulo de configuracao. `DATABASE_PATH` e lido do ambiente na importacao desse
+modulo. Caminhos podem ser strings ou `Path`; valores vazios ou de tipo invalido
+geram `ValueError`, sem fallback. Diretorios pais precisam existir. Caminhos
+relativos continuam relativos ao diretorio de trabalho e foreign keys ficam ativas.
+
+Ao usar WSGI com `app.run:app`, prepare o banco uma vez antes de iniciar os
+processos, com a mesma configuracao de ambiente. Exemplo da etapa explicita
+(pode migrar dados existentes; exige backup e parada conforme abaixo):
+
+```python
+from app.run import app
+from app.scripts.schema import create_schema
+
+with app.app_context():
+    create_schema()
+```
 
 ## Banco de Dados
 
@@ -137,6 +167,10 @@ O modulo `category` expõe atualmente:
 
 O `GET /category` aceita os filtros opcionais `id` (inteiro positivo) e
 `nome` (busca parcial). Consultas bem-sucedidas retornam HTTP 200.
+
+Nas consultas de categorias, contas correntes e tipos de lancamento, o filtro
+`id` aceita valores de 1 a 9223372036854775807. Valores fora desse intervalo
+retornam HTTP 400 com erro JSON; um ID valido sem registro retorna lista vazia.
 
 O `POST /category` segue este fluxo:
 
@@ -229,6 +263,10 @@ Corrija os dados indicados antes de tentar novamente; nenhuma linha e descartada
 para contornar erros. Faca backup do banco e pare os processos da aplicacao
 antes de atualizar: versoes antigas que usam `valor` nao sao compativeis com o
 schema convertido. Os testes usam bancos isolados; nao migram o banco local.
+
+O [ensaio de recuperacao sintetica](docs/features/F-003-dados-e-migracao/recuperacao-sintetica.md)
+documenta backup, restauracao apos commit e comparacoes de schema, registros e
+sequencia. Ele nao valida recuperacao de dados reais nem define RPO/RTO.
 
 ### Fluxo de desenvolvimento
 
