@@ -43,7 +43,7 @@ def create(category_name):
             ) from e
 
         raise IntegrityError(
-            message=f"Esta categoria já está cadastrada ou é inválida. Detalhe: {e}",
+            message="Esta categoria já está cadastrada ou é inválida.",
             field="categoria",
             value=category_name,
         ) from e

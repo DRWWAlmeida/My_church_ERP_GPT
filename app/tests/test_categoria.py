@@ -1,6 +1,14 @@
 import pytest
 
 
+def test_accepts_maximum_id_filter(client):
+    response = client.get("/category", query_string={"id": "9223372036854775807"})
+
+    assert response.status_code == 200
+    assert response.get_json()["status"] == "success"
+    assert response.get_json()["data"] == []
+
+
 @pytest.fixture
 def created_categories(client):
     names = ["Tecnologia", "Luz", "Uso e Consumo"]
@@ -118,7 +126,15 @@ def test_get_category_returns_empty_list(client):
     assert response.get_json()["data"] == []
 
 
-@pytest.mark.parametrize("category_id", ["abc", "0", "-1", "1.5"])
+@pytest.mark.parametrize(
+    "category_id",
+    [
+        "abc", "0", "-1", "1.5",
+        pytest.param("9223372036854775808", id="above-sqlite-limit"),
+        pytest.param("9" * 100, id="hundred-digits"),
+        pytest.param("9" * 5000, id="beyond-python-conversion-limit"),
+    ],
+)
 def test_rejects_invalid_category_id(client, category_id):
     response = client.get(f"/category?id={category_id}")
     payload = response.get_json()

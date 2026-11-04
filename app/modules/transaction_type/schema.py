@@ -47,6 +47,13 @@ def validate_transaction_type_filters(
                 value=transaction_type_id,
             )
 
+        if parsed_id > 9223372036854775807:
+            raise ValidationError(
+                message="O campo 'id' deve ser no máximo 9223372036854775807.",
+                field="id",
+                value=transaction_type_id,
+            )
+
     parsed_name = None
     if transaction_type_name is not None:
         parsed_name = normalize_string(transaction_type_name)

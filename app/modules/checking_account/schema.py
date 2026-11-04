@@ -44,6 +44,13 @@ def validate_checking_account_filters(account_id=None, account_name=None):
                 value=account_id,
             )
 
+        if parsed_id > 9223372036854775807:
+            raise ValidationError(
+                message="O campo 'id' deve ser no máximo 9223372036854775807.",
+                field="id",
+                value=account_id,
+            )
+
     parsed_name = None
     if account_name is not None:
         parsed_name = normalize_string(account_name)
