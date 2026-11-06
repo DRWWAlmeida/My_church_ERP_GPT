@@ -32,3 +32,12 @@ def category_bp_post():
         "message": "Categoria criada!"
     }), 201
 
+@category_bp.route('/category', methods=['PUT'])
+def category_bp_put():
+    payload = request.get_json()
+    response = update_category(payload)
+    return jsonify({
+        "data": response,
+        "status": "success",
+        "message": "Categoria Atualizada!"
+    }), 201
