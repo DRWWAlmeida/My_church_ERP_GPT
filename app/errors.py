@@ -1,8 +1,13 @@
 from flask import Blueprint, jsonify
 
-from app.core.errors import ValidationError, OperationalError, IntegrityError
+from app.core.errors import ValidationError, OperationalError, IntegrityError, NotFoundError
 
 errors_bp = Blueprint('errors', __name__)
+
+
+@errors_bp.app_errorhandler(NotFoundError)
+def handle_not_found_error(error):
+    return jsonify(message=error.message, status="error"), error.status_code
 
 @errors_bp.app_errorhandler(ValidationError)
 def handle_validation_error(e):

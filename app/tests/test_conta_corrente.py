@@ -1,6 +1,14 @@
 import pytest
 
 
+def test_accepts_maximum_id_filter(client):
+    response = client.get("/checking-account", query_string={"id": "9223372036854775807"})
+
+    assert response.status_code == 200
+    assert response.get_json()["status"] == "success"
+    assert response.get_json()["data"] == []
+
+
 @pytest.fixture
 def created_accounts(client):
     names = ["Banco Principal", "Caixa", "Conta Digital"]
@@ -121,11 +129,20 @@ def test_get_checking_account_returns_empty_list(client):
     assert response.get_json()["data"] == []
 
 
-@pytest.mark.parametrize("account_id", ["abc", "0", "-1", "1.5"])
+@pytest.mark.parametrize(
+    "account_id",
+    [
+        "abc", "0", "-1", "1.5",
+        pytest.param("9223372036854775808", id="above-sqlite-limit"),
+        pytest.param("9" * 100, id="hundred-digits"),
+        pytest.param("9" * 5000, id="beyond-python-conversion-limit"),
+    ],
+)
 def test_rejects_invalid_checking_account_id(client, account_id):
     response = client.get(f"/checking-account?id={account_id}")
 
     assert response.status_code == 400
+    assert response.get_json()["status"] == "error"
     assert response.get_json()["data"]["id"] == account_id
 
 

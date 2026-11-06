@@ -5,6 +5,17 @@ from app import create_app
 from app.scripts.schema import create_schema
 
 
+def seed_missing_relations(connection):
+    # Legacy fixtures must contain real FK targets before table reconstruction.
+    for table in ("categoria", "conta_corrente", "tipo_lancamento"):
+        exists = connection.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?", (table,)
+        ).fetchone()
+        if not exists:
+            connection.execute(f"CREATE TABLE {table}(id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT NOT NULL)")
+            connection.execute(f"INSERT INTO {table}(nome) VALUES ('Teste')")
+
+
 def test_schema_migrates_duplicate_categories_and_preserves_references():
     app = create_app()
     db_path = app.config["BASE_DIR"] / "db" / f"migration_{uuid4().hex}.db"
@@ -32,6 +43,7 @@ def test_schema_migrates_duplicate_categories_and_preserves_references():
             ) VALUES (1, '2026-09-28', 10, 'Teste', 2, 1);
             """
         )
+        seed_missing_relations(connection)
         connection.commit()
     finally:
         connection.close()
@@ -84,6 +96,7 @@ def test_schema_migrates_duplicate_accounts_and_preserves_references():
             ) VALUES (1, '2026-09-28', 10, 'Teste', 1, 2);
             """
         )
+        seed_missing_relations(connection)
         connection.commit()
     finally:
         connection.close()
@@ -136,6 +149,7 @@ def test_schema_migrates_duplicate_transaction_types_and_preserves_references():
             ) VALUES (2, '2026-09-28', 10, 'Teste', 1, 1);
             """
         )
+        seed_missing_relations(connection)
         connection.commit()
     finally:
         connection.close()

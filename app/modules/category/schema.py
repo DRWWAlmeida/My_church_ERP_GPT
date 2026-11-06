@@ -43,6 +43,13 @@ def validate_category_filters(category_id=None, category_name=None):
                 value=category_id,
             )
 
+        if parsed_id > 9223372036854775807:
+            raise ValidationError(
+                message="O campo 'id' deve ser no máximo 9223372036854775807.",
+                field="id",
+                value=category_id,
+            )
+
     parsed_name = None
     if category_name is not None:
         parsed_name = normalize_string(category_name)

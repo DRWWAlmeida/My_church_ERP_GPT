@@ -6,6 +6,11 @@ class AppError(Exception):
         self.value = value
         super().__init__(message)
 
+class NotFoundError(AppError):
+    def __init__(self, message):
+        super().__init__(message=message, status_code=404)
+
+
 class ValidationError(AppError):
     def __init__(self, message, field=None, value=None):
         super().__init__(

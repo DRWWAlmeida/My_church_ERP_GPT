@@ -40,16 +40,31 @@ Utilize letras minúsculas e separe os termos por hífen. O prefixo deve indicar
 *   **Funcionalidades:** `feature/nome-da-tarefa` (ex: `feature/api-category-update`)
 *   **Correções de bug:** `bugfix/nome-do-erro` (ex: `bugfix/login-desktop`)
 *   **Correções urgentes em produção:** `hotfix/ajuste-urgente`
+*   **Trabalho conduzido pelo Codex:** `codex/nome-da-tarefa`
+*   **Histórico local arquivado:** `archive/nome-original` (preserva o commit e o upstream; não é base para novas tarefas)
+
+`main` representa a linha estável; `develop` é a linha de integração.
+`development` é um nome legado, arquivado localmente como `archive/development`.
+Branches arquivadas não comprovam aprovação ou integração em `main`.
 
 ### Rotina Diária
 1.  Antes de iniciar qualquer tarefa, atualize seu repositório local:
     ```bash
-    git checkout main
-    git pull
+    git switch develop
+    git pull --ff-only
     ```
-2.  Crie sua branch a partir da versão mais recente:
+2.  Crie sua branch a partir da versão mais recente de `develop`:
     ```bash
     git checkout -b feature/sua-tarefa
     ```
+3.  Integre e teste em `develop` antes de promover para `main`, mediante a autorização aplicável.
+
+Antes de trocar de branch, confira `git status` e preserve trabalho pendente.
+Quando uma tarefa depender de alterações ainda não integradas, registre explicitamente
+a branch e o commit usados como base. Não atualize `develop` ou `main` apenas para
+organizar nomes de branches.
+
+O inventário e as pendências da organização local estão em
+[docs/handoff-organizacao-branches.md](docs/handoff-organizacao-branches.md).
 
 ---
