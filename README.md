@@ -23,6 +23,16 @@ app/
       routes.py
       schema.py
       services.py
+    checking_account/
+      repository.py
+      routes.py
+      schema.py
+      services.py
+    transaction_type/
+      repository.py
+      routes.py
+      schema.py
+      services.py
   scripts/
     schema.py
   tests/
@@ -61,7 +71,7 @@ app/db/igreja_erp.db
 1. Clone o repositorio.
 2. Acesse a raiz do projeto.
 3. Crie e ative um ambiente virtual.
-4. Instale o Flask.
+4. Instale as dependencias.
 5. Execute a aplicacao como modulo.
 
 ### Windows PowerShell
@@ -69,8 +79,15 @@ app/db/igreja_erp.db
 ```powershell
 python -m venv .venv
 .venv\Scripts\Activate.ps1
-pip install flask
+pip install -r requirements.txt
 python -m app.run
+```
+
+Para desenvolvimento e execucao dos testes, instale:
+
+```powershell
+pip install -r requirements-dev.txt
+python -m pytest
 ```
 
 ## Fluxo de Inicializacao
@@ -118,6 +135,9 @@ O modulo `category` expõe atualmente:
 - `GET /category`
 - `POST /category`
 
+O `GET /category` aceita os filtros opcionais `id` (inteiro positivo) e
+`nome` (busca parcial). Consultas bem-sucedidas retornam HTTP 200.
+
 O `POST /category` segue este fluxo:
 
 1. A rota recebe o JSON.
@@ -125,8 +145,37 @@ O `POST /category` segue este fluxo:
 3. O repository grava no banco.
 4. A rota devolve resposta JSON padronizada.
 
+O modulo `checking_account` segue a mesma estrutura e expoe:
+
+- `GET /checking-account`
+- `POST /checking-account`
+
+O `GET` aceita os filtros opcionais `id` e `nome`. O `POST` recebe:
+
+```json
+{
+  "conta_corrente": "Banco Principal"
+}
+```
+
+O modulo `transaction_type` expoe:
+
+- `GET /transaction-type`
+- `POST /transaction-type`
+
+O `GET` aceita os filtros opcionais `id` e `nome`. O `POST` recebe:
+
+```json
+{
+  "tipo_lancamento": "Entrada"
+}
+```
+
 ## Observacoes
 
 - Rode o projeto com `python -m app.run` a partir da raiz do repositorio.
+- O modo debug vem desativado. Para habilita-lo localmente, defina
+  `FLASK_DEBUG=true`.
+- O caminho do SQLite pode ser sobrescrito com a variavel `DATABASE_PATH`.
 - Nao execute `python app/run.py` se quiser manter os imports por pacote funcionando corretamente.
 - O `README` descreve o estado atual do codigo, nao o desenho final pretendido da arquitetura.
